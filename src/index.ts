@@ -19,6 +19,7 @@ interface MarkdownlintIssue {
   ruleDescription: string;
   errorDetail?: string;
   fixInfo?: {
+    editColumn?: number;
     deleteCount?: number;
     insertText?: string;
   };
@@ -84,7 +85,7 @@ class MarkdownLintServer {
           },
           {
             name: 'fix_markdown',
-            description: 'Automatically fix Markdown issues and return the corrected content',
+            description: 'Automatically fix ALL possible Markdown issues and return the corrected content',
             inputSchema: {
               type: 'object',
               properties: {
@@ -94,8 +95,8 @@ class MarkdownLintServer {
                 },
                 writeFile: {
                   type: 'boolean',
-                  description: 'Whether to write the fixed content back to the file (default: false)',
-                  default: false
+                  description: 'Whether to write the fixed content back to the file (default: true)',
+                  default: true
                 }
               },
               required: ['filePath']
@@ -137,7 +138,7 @@ class MarkdownLintServer {
             if (typeof typedArgs.filePath !== 'string') {
               throw new McpError(ErrorCode.InvalidParams, 'filePath must be a string');
             }
-            const writeFile = typeof typedArgs.writeFile === 'boolean' ? typedArgs.writeFile : false;
+            const writeFile = typeof typedArgs.writeFile === 'boolean' ? typedArgs.writeFile : true;
             return await this.fixMarkdown(typedArgs.filePath, writeFile);
           
           case 'get_configuration':
@@ -199,11 +200,14 @@ class MarkdownLintServer {
         `- **Line ${issue.lineNumber}**: ${issue.ruleDescription} (${issue.ruleNames.join('/')})\n  ${issue.errorDetail || ''}`
       ).join('\n');
 
+      const fixableCount = issues.filter(issue => issue.fixInfo).length;
+      const fixableText = fixableCount > 0 ? `\n\n💡 **${fixableCount} of these issues can be automatically fixed** using the \`fix_markdown\` tool.` : '';
+
       return {
         content: [
           {
             type: 'text',
-            text: `## Markdown Linting Results for ${path.basename(filePath)}\n\n**Found ${issues.length} issue(s):**\n\n${issueList}\n\n💡 Use the \`fix_markdown\` tool to automatically fix many of these issues.`
+            text: `## Markdown Linting Results for ${path.basename(filePath)}\n\n**Found ${issues.length} issue(s):**\n\n${issueList}${fixableText}`
           }
         ]
       };
@@ -227,82 +231,147 @@ class MarkdownLintServer {
       // Load configuration
       const config = await this.loadConfiguration(path.dirname(filePath));
       
-      // Run markdownlint with fix option
-      const fixResults = markdownlint.sync({
+      // Apply fixes iteratively until no more fixes are possible
+      let currentContent = originalContent;
+      let totalFixesApplied = 0;
+      let iterationCount = 0;
+      const maxIterations = 10; // Prevent infinite loops
+      
+      while (iterationCount < maxIterations) {
+        iterationCount++;
+        
+        // Run markdownlint on current content
+        const results = markdownlint.sync({
+          strings: {
+            [filePath]: currentContent
+          },
+          config
+        });
+
+        const issues = (results[filePath] || []) as MarkdownlintIssue[];
+        const fixableIssues = issues.filter(issue => issue.fixInfo);
+        
+        if (fixableIssues.length === 0) {
+          // No more fixable issues
+          break;
+        }
+
+        // Apply all fixes for this iteration
+        let contentLines = currentContent.split('\n');
+        let fixesAppliedThisIteration = 0;
+
+        // Sort fixes by line number (descending) to maintain correct line numbers when applying fixes
+        fixableIssues.sort((a, b) => (b.lineNumber || 0) - (a.lineNumber || 0));
+
+        for (const issue of fixableIssues) {
+          if (issue.fixInfo && issue.lineNumber) {
+            const lineIndex = issue.lineNumber - 1;
+            const fixInfo = issue.fixInfo;
+            
+            if (lineIndex >= 0 && lineIndex < contentLines.length) {
+              const originalLine = contentLines[lineIndex];
+              let newLine = originalLine;
+
+              // Apply the fix based on fixInfo
+              if (fixInfo.editColumn !== undefined) {
+                // Column-based edit
+                const editColumn = fixInfo.editColumn - 1; // Convert to 0-based
+                const deleteCount = fixInfo.deleteCount || 0;
+                const insertText = fixInfo.insertText || '';
+                
+                if (editColumn >= 0 && editColumn <= originalLine.length) {
+                  newLine = originalLine.substring(0, editColumn) + 
+                           insertText + 
+                           originalLine.substring(editColumn + deleteCount);
+                }
+              } else {
+                // Line-based edit
+                if (fixInfo.deleteCount !== undefined && fixInfo.deleteCount > 0) {
+                  // Delete lines
+                  contentLines.splice(lineIndex, fixInfo.deleteCount);
+                  if (fixInfo.insertText) {
+                    contentLines.splice(lineIndex, 0, fixInfo.insertText);
+                  }
+                  fixesAppliedThisIteration++;
+                  continue;
+                } else if (fixInfo.insertText !== undefined) {
+                  // Replace or insert
+                  newLine = fixInfo.insertText;
+                }
+              }
+
+              if (newLine !== originalLine) {
+                contentLines[lineIndex] = newLine;
+                fixesAppliedThisIteration++;
+              }
+            }
+          }
+        }
+
+        currentContent = contentLines.join('\n');
+        totalFixesApplied += fixesAppliedThisIteration;
+
+        // If no fixes were applied this iteration, break to avoid infinite loop
+        if (fixesAppliedThisIteration === 0) {
+          break;
+        }
+      }
+
+      // Write file if requested
+      if (writeFile) {
+        await fs.writeFile(filePath, currentContent, 'utf8');
+      }
+
+      // Get final results
+      const finalResults = markdownlint.sync({
+        strings: {
+          [filePath]: currentContent
+        },
+        config
+      });
+
+      const remainingIssues = (finalResults[filePath] || []) as MarkdownlintIssue[];
+      const originalResults = markdownlint.sync({
         strings: {
           [filePath]: originalContent
         },
         config
       });
+      const originalIssues = (originalResults[filePath] || []) as MarkdownlintIssue[];
 
-      // Apply fixes using markdownlint's built-in fix functionality
-      let fixedContent = originalContent;
-      const allIssues = (fixResults[filePath] || []) as MarkdownlintIssue[];
-      const fixes = allIssues.filter((issue: MarkdownlintIssue) => issue.fixInfo);
-      
-      if (fixes.length > 0) {
-        // Apply fixes in reverse order to maintain line numbers
-        fixes.sort((a: MarkdownlintIssue, b: MarkdownlintIssue) => (b.lineNumber || 0) - (a.lineNumber || 0));
-        
-        const lines = fixedContent.split('\n');
-        for (const fix of fixes) {
-          if (fix.fixInfo && fix.lineNumber) {
-            const lineIndex = fix.lineNumber - 1;
-            const fixInfo = fix.fixInfo;
-            
-            if (fixInfo.deleteCount !== undefined) {
-              lines.splice(lineIndex, fixInfo.deleteCount);
-            }
-            if (fixInfo.insertText !== undefined) {
-              lines.splice(lineIndex, 0, fixInfo.insertText);
-            }
-          }
-        }
-        fixedContent = lines.join('\n');
-      }
-
-      // Write file if requested
-      if (writeFile) {
-        await fs.writeFile(filePath, fixedContent, 'utf8');
-      }
-
-      // Check remaining issues
-      const remainingResults = markdownlint.sync({
-        strings: {
-          [filePath]: fixedContent
-        },
-        config
-      });
-
-      const remainingIssues = (remainingResults[filePath] || []) as MarkdownlintIssue[];
-      const fixedCount = allIssues.length - remainingIssues.length;
-
+      // Generate report
       let statusText = '';
-      if (fixedCount > 0) {
-        statusText = `✅ **Fixed ${fixedCount} issue(s)**\n\n`;
+      
+      if (totalFixesApplied > 0) {
+        statusText = `✅ **Successfully applied ${totalFixesApplied} automatic fixes** across ${iterationCount} iteration(s)\n\n`;
       }
       
       if (remainingIssues.length > 0) {
-        statusText += `⚠️ **${remainingIssues.length} issue(s) require manual attention**\n\n`;
+        statusText += `⚠️ **${remainingIssues.length} issue(s) require manual attention:**\n\n`;
         const remainingList = remainingIssues.map((issue: MarkdownlintIssue) => 
-          `- **Line ${issue.lineNumber}**: ${issue.ruleDescription} (${issue.ruleNames.join('/')})`
+          `- **Line ${issue.lineNumber}**: ${issue.ruleDescription} (${issue.ruleNames.join('/')})\n  ${issue.errorDetail || ''}`
         ).join('\n');
         statusText += remainingList;
-      } else if (fixedCount > 0) {
-        statusText += `🎉 **All issues resolved!** The file is now fully compliant.`;
+      } else if (totalFixesApplied > 0) {
+        statusText += `🎉 **All issues resolved!** The file is now fully compliant with Markdown standards.`;
       } else {
         statusText = `✅ **No fixes needed** - The file is already compliant.`;
       }
 
-      if (writeFile) {
+      if (writeFile && totalFixesApplied > 0) {
         statusText += `\n\n📝 **Changes saved to file**`;
+      }
+
+      // Show before/after summary
+      if (originalIssues.length > 0 || remainingIssues.length > 0) {
+        statusText += `\n\n**Summary:**\n- **Before:** ${originalIssues.length} issues\n- **After:** ${remainingIssues.length} issues\n- **Fixed:** ${originalIssues.length - remainingIssues.length} issues`;
       }
 
       return {
         content: [
           {
             type: 'text',
-            text: `## Fix Results for ${path.basename(filePath)}\n\n${statusText}${writeFile ? '' : '\n\n**Preview of fixed content:**\n\n```markdown\n' + fixedContent + '\n```'}`
+            text: `## Fix Results for ${path.basename(filePath)}\n\n${statusText}${!writeFile && totalFixesApplied > 0 ? '\n\n**Preview of fixed content:**\n\n```markdown\n' + currentContent + '\n```' : ''}`
           }
         ]
       };
@@ -320,7 +389,7 @@ class MarkdownLintServer {
       content: [
         {
           type: 'text',
-          text: `## Current Markdownlint Configuration\n\n**Active Rules:**\n- Line length limit: 120 characters\n- HTML elements: Allowed\n- First line heading: Not required\n- All other rules: Enabled (default markdownlint ruleset)\n\n**Configuration Source:** Built-in defaults (can be overridden with .markdownlint.json)\n\n**Total Rules:** 30+ standard markdownlint rules covering formatting, consistency, and best practices.`
+          text: `## Current Markdownlint Configuration\n\n**Active Rules:**\n- Line length limit: 120 characters\n- HTML elements: Allowed\n- First line heading: Not required\n- All other rules: Enabled (default markdownlint ruleset)\n\n**Configuration Source:** Built-in defaults (can be overridden with .markdownlint.json)\n\n**Total Rules:** 30+ standard markdownlint rules covering formatting, consistency, and best practices.\n\n**Auto-Fix Capability:** Automatically fixes all possible issues including spacing, heading formatting, list formatting, and line endings.`
         }
       ]
     };
