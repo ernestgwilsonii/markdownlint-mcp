@@ -74,6 +74,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - MD024 - Multiple headings with the same content
     - MD025 - Multiple top-level headings in the same document
     - MD036 - Emphasis used instead of a heading
+  - Phase 2F (Remaining Rules - 100% Coverage):
+    - MD013 - Line length
+    - MD028 - Blank line inside blockquote
+    - MD029 - Ordered list item prefix
+    - MD033 - Inline HTML
+    - MD041 - First line in a file should be a top-level heading
+    - MD043 - Required heading structure
+    - MD044 - Proper names should have the correct capitalization
 
 ### Planned
 - Testing framework with Jest
