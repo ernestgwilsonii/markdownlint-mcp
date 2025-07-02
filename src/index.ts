@@ -276,17 +276,161 @@ class MarkdownLintServer {
           }
         }
         
-        // Calculate fixes applied
-        fixesApplied = lines.length - newLines.length;
+        // Calculate fixes applied for this rule
+        const md012FixesApplied = lines.length - newLines.length;
+        fixesApplied += md012FixesApplied;
         lines = newLines;
       }
       
-      // Handle other fixable issues by using the fixInfo
-      for (const issue of issues) {
-        if (issue.fixInfo && issue.lineNumber && !issue.ruleNames.includes('MD012')) {
-          // Apply other fixes as needed
-          // ... implementation for other rules if required
+      // Handle MD022 (blanks around headings)
+      if (issues.some(issue => issue.ruleNames.includes('MD022'))) {
+        let newLines: string[] = [];
+        let md022FixesApplied = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const isHeading = /^#{1,6}\s+.+/.test(line);
+          
+          if (isHeading) {
+            // Check if there's a blank line before the heading (unless it's the first line)
+            const needsBlankBefore = i > 0 && lines[i-1].trim() !== '';
+            
+            // Check if there's a blank line after the heading (unless it's the last line)
+            const needsBlankAfter = i < lines.length - 1 && lines[i+1].trim() !== '';
+            
+            if (needsBlankBefore) {
+              newLines.push('');
+              md022FixesApplied++;
+            }
+            
+            newLines.push(line);
+            
+            if (needsBlankAfter) {
+              newLines.push('');
+              md022FixesApplied++;
+            }
+          } else {
+            newLines.push(line);
+          }
         }
+        
+        fixesApplied += md022FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD031 (blanks around fenced code blocks)
+      if (issues.some(issue => issue.ruleNames.includes('MD031'))) {
+        let newLines: string[] = [];
+        let inCodeBlock = false;
+        let md031FixesApplied = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const isFenceStart = line.trim().startsWith('```');
+          const isFenceEnd = inCodeBlock && line.trim() === '```';
+          
+          if (isFenceStart && !inCodeBlock) {
+            // Check if there's a blank line before the code block (unless it's the first line)
+            const needsBlankBefore = i > 0 && lines[i-1].trim() !== '';
+            
+            if (needsBlankBefore) {
+              newLines.push('');
+              md031FixesApplied++;
+            }
+            
+            newLines.push(line);
+            inCodeBlock = true;
+          } else if (isFenceEnd) {
+            newLines.push(line);
+            inCodeBlock = false;
+            
+            // Check if there's a blank line after the code block (unless it's the last line)
+            const needsBlankAfter = i < lines.length - 1 && lines[i+1].trim() !== '';
+            
+            if (needsBlankAfter) {
+              newLines.push('');
+              md031FixesApplied++;
+            }
+          } else {
+            newLines.push(line);
+          }
+        }
+        
+        fixesApplied += md031FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD040 (fenced code language)
+      if (issues.some(issue => issue.ruleNames.includes('MD040'))) {
+        let newLines: string[] = [];
+        let inCodeBlock = false;
+        let md040FixesApplied = 0;
+        
+        for (const line of lines) {
+          if (!inCodeBlock && line.trim() === '```') {
+            // Add 'text' as the default language
+            newLines.push('```text');
+            inCodeBlock = true;
+            md040FixesApplied++;
+          } else if (inCodeBlock && line.trim() === '```') {
+            newLines.push(line);
+            inCodeBlock = false;
+          } else {
+            newLines.push(line);
+            if (!inCodeBlock && line.trim().startsWith('```')) {
+              inCodeBlock = true;
+            }
+          }
+        }
+        
+        fixesApplied += md040FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD032 (blanks around lists)
+      if (issues.some(issue => issue.ruleNames.includes('MD032'))) {
+        let newLines: string[] = [];
+        let md032FixesApplied = 0;
+        let inList = false;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const isListItem = /^(\s*[-+*]|\s*\d+\.)\s+.+/.test(line);
+          const isEndOfList = inList && !isListItem && line.trim() !== '';
+          
+          if (isListItem && !inList) {
+            // List is starting
+            inList = true;
+            
+            // Check if there's a blank line before the list (unless it's the first line)
+            const needsBlankBefore = i > 0 && lines[i-1].trim() !== '';
+            
+            if (needsBlankBefore) {
+              newLines.push('');
+              md032FixesApplied++;
+            }
+            
+            newLines.push(line);
+          } else if (isEndOfList) {
+            // List is ending
+            inList = false;
+            
+            // Check if there's a blank line after the list
+            const needsBlankAfter = line.trim() !== '';
+            
+            if (needsBlankAfter) {
+              newLines.push('');
+              md032FixesApplied++;
+            }
+            
+            newLines.push(line);
+          } else {
+            newLines.push(line);
+          }
+        }
+        
+        fixesApplied += md032FixesApplied;
+        lines = newLines;
       }
       
       const currentContent = lines.join('\n');
@@ -305,8 +449,41 @@ class MarkdownLintServer {
       });
       const finalIssues = (finalResults[filePath] || []) as MarkdownlintIssue[];
       
-      // Use the previously calculated fixesApplied count
-      // instead of calculating based on issue count difference
+      // If no fixes were applied but issues were detected, try using markdownlint's fix option
+      if (fixesApplied === 0 && finalIssues.length > 0) {
+        try {
+          // Try markdownlint's built-in fix as a fallback
+          const fixResults = markdownlint.sync({
+            strings: {
+              [filePath]: originalContent
+            },
+            config,
+            fix: true
+          } as any);
+          
+          const fixedContent = (fixResults[filePath] as any)?.fixedContent;
+          
+          if (fixedContent && fixedContent !== originalContent) {
+            // Use the fixed content from markdownlint
+            const fixedLines = lines.slice(); // Create a copy of the original lines
+            const newLines = fixedContent.split('\n');
+            
+            // Recalculate fixes applied
+            fixesApplied += Math.abs(lines.length - newLines.length);
+            
+            // Update lines with the fixed content
+            lines = newLines;
+            
+            // Write the fixed content back to file if requested
+            if (writeFile) {
+              await fs.writeFile(filePath, fixedContent, 'utf8');
+            }
+          }
+        } catch (err) {
+          // Ignore errors from the fallback fix attempt
+          console.error("Error in fallback fix attempt:", err);
+        }
+      }
       
       // Generate status report
       let statusText = '';

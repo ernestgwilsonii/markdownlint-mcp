@@ -5,7 +5,7 @@ async function testMCPServer() {
   console.log('Testing MCP server directly...\n');
   
   // Test file path
-  const testFile = './test.md';
+  const testFile = './README.md';
   
   try {
     // Read original content

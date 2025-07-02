@@ -19,6 +19,7 @@ While many MCP servers exist for converting various file formats **to** Markdown
 - **Compliance validation** against established standards
 - **Seamless integration** with MCP-compatible AI assistants
 
+
 ## Features
 
 ### MCP Tools Provided
@@ -26,6 +27,7 @@ While many MCP servers exist for converting various file formats **to** Markdown
 1. **`lint_markdown`** - Analyze a Markdown file and return detailed issues
 2. **`fix_markdown`** - Automatically fix Markdown issues and return corrected content
 3. **`get_configuration`** - Display current linting rules and configuration
+
 
 ### Standards-Based Approach
 
@@ -40,11 +42,13 @@ While many MCP servers exist for converting various file formats **to** Markdown
   - Consistent emphasis markers
   - And much more
 
+
 ### Configuration Support
 
 - **Zero configuration** required (uses sensible defaults)
 - **Optional customization** via `.markdownlint.json` files
 - **Ecosystem compatibility** for specialized Markdown requirements
+
 
 ## Installation
 
@@ -72,27 +76,32 @@ Add to your Claude Desktop MCP configuration:
 ### With Other MCP Clients
 
 This server works with any MCP-compatible client including:
+
 - Claude Desktop
 - Cursor
 - Cline
 - VS Code with MCP support
 
+
 ## Example Workflows
 
 ### Lint a Markdown File
-```
+
+```text
 User: "Please lint my README.md file and tell me what issues exist"
 AI: Uses lint_markdown tool to analyze and report issues
 ```
 
 ### Fix Markdown Issues
-```
+
+```text
 User: "Fix all the markdown issues in my documentation files"
 AI: Uses fix_markdown tool to automatically correct problems
 ```
 
 ### Validate Compliance
-```
+
+```text
 User: "Is my markdown compliant with standard formatting rules?"
 AI: Uses lint_markdown to validate and provide compliance status
 ```
@@ -105,6 +114,7 @@ AI: Uses lint_markdown to validate and provide compliance status
 - **Single installation** - no additional tools needed
 - **Efficient processing** via direct API calls
 
+
 ## Development Status
 
 🚧 **In Development** - This project is currently being built with the goal of:
@@ -113,6 +123,7 @@ AI: Uses lint_markdown to validate and provide compliance status
 2. **Community testing** and feedback
 3. **Submission to official MCP collection** for maximum visibility
 4. **Continuous improvement** based on user needs
+
 
 ## Contributing
 
@@ -126,6 +137,7 @@ We welcome contributions! This project aims to become part of the official MCP s
 - [ ] Community feedback integration
 - [ ] Submission to official MCP collection
 
+
 ## License
 
 MIT License - see LICENSE file for details
@@ -135,6 +147,7 @@ MIT License - see LICENSE file for details
 - [markdownlint](https://github.com/DavidAnson/markdownlint) - The underlying linting engine
 - [Model Context Protocol](https://modelcontextprotocol.io/) - The protocol this server implements
 - [MCP Servers Collection](https://github.com/modelcontextprotocol/servers) - Official MCP servers
+
 
 ## Support
 
