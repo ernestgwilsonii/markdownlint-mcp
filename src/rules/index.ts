@@ -5,7 +5,12 @@
 import { Rule, RuleMap } from './rule-interface';
 
 // Import implemented rules
+import md001 from './md001';
+import md003 from './md003';
 import md004 from './md004';
+import md024 from './md024';
+import md025 from './md025';
+import md036 from './md036';
 import md005 from './md005';
 import md007 from './md007';
 import md009 from './md009';
@@ -36,6 +41,15 @@ import md051 from './md051';
 import md052 from './md052';
 import md053 from './md053';
 import md054 from './md054';
+import md058 from './md058';
+import md035 from './md035';
+import md042 from './md042';
+import md045 from './md045';
+import md046 from './md046';
+import md048 from './md048';
+import md055 from './md055';
+import md056 from './md056';
+import md059 from './md059';
 
 // Future rule imports (to be implemented)
 // Add more rule imports as they are implemented
@@ -45,7 +59,12 @@ import md054 from './md054';
  * This will be populated as rules are implemented
  */
 export const rules: RuleMap = {
+  MD001: md001,
+  MD003: md003,
   MD004: md004,
+  MD024: md024,
+  MD025: md025,
+  MD036: md036,
   MD005: md005,
   MD007: md007,
   MD009: md009,
@@ -74,8 +93,17 @@ export const rules: RuleMap = {
   MD050: md050,
   MD051: md051,
   MD052: md052,
+  MD035: md035,
+  MD042: md042,
+  MD045: md045,
+  MD046: md046,
+  MD048: md048,
+  MD055: md055,
+  MD056: md056,
+  MD059: md059,
   MD053: md053,
   MD054: md054,
+  MD058: md058,
   // Add more rules as they are implemented
   // ...
 };

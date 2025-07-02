@@ -55,6 +55,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - MD052 - Reference links and images should use a label that is defined
     - MD053 - Link and image reference definitions should be needed
     - MD054 - Link and image style
+  - Phase 2A (Table Rules):
+    - MD058 - Tables should be surrounded by blank lines
+  - Phase 2B (Whitespace and Line Rules):
+    - MD035 - Horizontal rule style
+    - MD046 - Code block style
+    - MD048 - Code fence style
+    - MD042 - No empty links
+  - Phase 2C (Table Rules):
+    - MD055 - Table pipe style
+    - MD056 - Table column count
+  - Phase 2D (Accessibility Rules):
+    - MD045 - Images should have alternate text (alt text)
+    - MD059 - Link text should be descriptive
+  - Phase 2E (Heading Structure Rules):
+    - MD001 - Heading levels should only increment by one level at a time
+    - MD003 - Heading style
+    - MD024 - Multiple headings with the same content
+    - MD025 - Multiple top-level headings in the same document
+    - MD036 - Emphasis used instead of a heading
 
 ### Planned
 - Testing framework with Jest
