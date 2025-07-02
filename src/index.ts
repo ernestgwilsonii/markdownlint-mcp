@@ -253,6 +253,115 @@ export class MarkdownLintServer {
       let fixesApplied = 0;
       
       // Process issues by rule
+      
+      // Handle MD009 (trailing spaces) manually
+      if (issues.some(issue => issue.ruleNames.includes('MD009'))) {
+        let newLines: string[] = [];
+        let md009FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Remove trailing spaces
+          const newLine = line.replace(/[ \t]+$/, '');
+          if (newLine !== line) {
+            md009FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md009FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD010 (hard tabs) manually
+      if (issues.some(issue => issue.ruleNames.includes('MD010'))) {
+        let newLines: string[] = [];
+        let md010FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Replace hard tabs with spaces (2 spaces per tab)
+          const newLine = line.replace(/\t/g, '  ');
+          if (newLine !== line) {
+            md010FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md010FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD018 (no space after hash on atx style heading)
+      if (issues.some(issue => issue.ruleNames.includes('MD018'))) {
+        let newLines: string[] = [];
+        let md018FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Find headings with no space after hash (e.g., "#Heading")
+          const newLine = line.replace(/^(#{1,6})([^#\s])/, '$1 $2');
+          if (newLine !== line) {
+            md018FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md018FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD019 (multiple spaces after hash on atx style heading)
+      if (issues.some(issue => issue.ruleNames.includes('MD019'))) {
+        let newLines: string[] = [];
+        let md019FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Find headings with multiple spaces after hash (e.g., "#   Heading")
+          const newLine = line.replace(/^(#{1,6})[ \t]{2,}/, '$1 ');
+          if (newLine !== line) {
+            md019FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md019FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD020 (no space inside hashes on closed atx style heading)
+      if (issues.some(issue => issue.ruleNames.includes('MD020'))) {
+        let newLines: string[] = [];
+        let md020FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Fix headings with no space inside closing hashes (e.g., "# Heading#")
+          const newLine = line.replace(/^(#{1,6})[ \t]+([^#\s].*?)[ \t]*#$/m, '$1 $2 #');
+          if (newLine !== line) {
+            md020FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md020FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD021 (multiple spaces inside hashes on closed atx style heading)
+      if (issues.some(issue => issue.ruleNames.includes('MD021'))) {
+        let newLines: string[] = [];
+        let md021FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Fix headings with multiple spaces inside closing hashes (e.g., "# Heading   #")
+          const newLine = line.replace(/^(#{1,6})[ \t]+(.+?)[ \t]{2,}#$/m, '$1 $2 #');
+          if (newLine !== line) {
+            md021FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md021FixesApplied;
+        lines = newLines;
+      }
+      
       // Handle MD012 (multiple consecutive blank lines) manually
       if (issues.some(issue => issue.ruleNames.includes('MD012'))) {
         // Find sequences of multiple blank lines and reduce them to single blank lines
@@ -426,6 +535,81 @@ export class MarkdownLintServer {
         }
         
         fixesApplied += md032FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD047 (files should end with a single newline character)
+      if (issues.some(issue => issue.ruleNames.includes('MD047'))) {
+        // Remove any trailing blank lines
+        while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+          lines.pop();
+          fixesApplied++;
+        }
+        
+        // Add a single blank line at the end
+        lines.push('');
+        fixesApplied++;
+      }
+      
+      // Handle MD023 (headings must start at the beginning of the line)
+      if (issues.some(issue => issue.ruleNames.includes('MD023'))) {
+        let newLines: string[] = [];
+        let md023FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Check if this is a heading with leading whitespace
+          const headingMatch = line.match(/^\s+(#{1,6}\s+.+)$/);
+          if (headingMatch) {
+            // Remove the leading whitespace
+            newLines.push(headingMatch[1]);
+            md023FixesApplied++;
+          } else {
+            newLines.push(line);
+          }
+        }
+        
+        fixesApplied += md023FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD026 (trailing punctuation in heading)
+      if (issues.some(issue => issue.ruleNames.includes('MD026'))) {
+        let newLines: string[] = [];
+        let md026FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Check if this is a heading
+          if (/^#{1,6}\s+.+$/.test(line)) {
+            // Remove trailing punctuation (.,;:!?), but preserve closing hash if present
+            const newLine = line.replace(/^(#{1,6}\s+.+?)[.,;:!?]+(\s*#*\s*)$/, '$1$2');
+            if (newLine !== line) {
+              md026FixesApplied++;
+            }
+            newLines.push(newLine);
+          } else {
+            newLines.push(line);
+          }
+        }
+        
+        fixesApplied += md026FixesApplied;
+        lines = newLines;
+      }
+      
+      // Handle MD027 (multiple spaces after blockquote symbol)
+      if (issues.some(issue => issue.ruleNames.includes('MD027'))) {
+        let newLines: string[] = [];
+        let md027FixesApplied = 0;
+        
+        for (const line of lines) {
+          // Check if this is a blockquote with multiple spaces after >
+          const newLine = line.replace(/^(\s*>)\s{2,}(.*)$/, '$1 $2');
+          if (newLine !== line) {
+            md027FixesApplied++;
+          }
+          newLines.push(newLine);
+        }
+        
+        fixesApplied += md027FixesApplied;
         lines = newLines;
       }
       
