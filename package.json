@@ -19,6 +19,14 @@
   "bin": {
     "markdownlint-mcp": "dist/index.js"
   },
+  "repository": {
+  "type": "git",
+  "url": "https://github.com/ernestgwilsonii/markdownlint-mcp.git"
+},
+"homepage": "https://github.com/ernestgwilsonii/markdownlint-mcp#readme",
+"bugs": {
+  "url": "https://github.com/ernestgwilsonii/markdownlint-mcp/issues"
+},
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "markdownlint": "^0.34.0"
