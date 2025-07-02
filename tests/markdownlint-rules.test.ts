@@ -245,6 +245,331 @@ describe('Markdownlint Rule Fix Logic', () => {
     ]);
   });
   
+  // MD012: Multiple consecutive blank lines
+  test('MD012: should fix multiple consecutive blank lines', () => {
+    // Test content with multiple blank lines
+    const lines = [
+      'Line 1',
+      '',
+      '',
+      '',
+      'Line 2',
+      '',
+      'Line 3',
+      '',
+      '',
+      'Line 4'
+    ];
+    
+    // Apply the fix logic
+    let fixedLines: string[] = [];
+    let blankLineCount = 0;
+    
+    for (const line of lines) {
+      if (line.trim() === '') {
+        blankLineCount++;
+        // Only add the first blank line of a sequence
+        if (blankLineCount === 1) {
+          fixedLines.push(line);
+        }
+      } else {
+        blankLineCount = 0;
+        fixedLines.push(line);
+      }
+    }
+    
+    // Check the results
+    expect(fixedLines).toEqual([
+      'Line 1',
+      '',
+      'Line 2',
+      '',
+      'Line 3',
+      '',
+      'Line 4'
+    ]);
+  });
+  
+  // MD022: Headings should be surrounded by blank lines
+  test('MD022: should fix headings not surrounded by blank lines', () => {
+    // Test content with headings not properly surrounded by blank lines
+    const lines = [
+      'Text before heading.',
+      '# Heading 1',
+      'Text after heading.',
+      'More text.',
+      '## Heading 2',
+      'Text after second heading.',
+      '',
+      '### Heading 3',
+      '',
+      'Text properly surrounded by blank lines.'
+    ];
+    
+    let fixedLines: string[] = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isHeading = /^#{1,6}\s+.+/.test(line);
+      
+      if (isHeading) {
+        // Check if there's a blank line before the heading (unless it's the first line)
+        const needsBlankBefore = i > 0 && lines[i-1].trim() !== '';
+        
+        // Check if there's a blank line after the heading (unless it's the last line)
+        const needsBlankAfter = i < lines.length - 1 && lines[i+1].trim() !== '';
+        
+        if (needsBlankBefore) {
+          fixedLines.push('');
+        }
+        
+        fixedLines.push(line);
+        
+        if (needsBlankAfter) {
+          fixedLines.push('');
+        }
+      } else {
+        fixedLines.push(line);
+      }
+    }
+    
+    // Check the results
+    expect(fixedLines).toEqual([
+      'Text before heading.',
+      '',
+      '# Heading 1',
+      '',
+      'Text after heading.',
+      'More text.',
+      '',
+      '## Heading 2',
+      '',
+      'Text after second heading.',
+      '',
+      '### Heading 3',
+      '',
+      'Text properly surrounded by blank lines.'
+    ]);
+  });
+  
+  // MD031: Fenced code blocks should be surrounded by blank lines
+  test('MD031: should fix code blocks not surrounded by blank lines', () => {
+    // Test content with code blocks not properly surrounded by blank lines
+    const lines = [
+      'Text before code block.',
+      '```javascript',
+      'const x = 1;',
+      '```',
+      'Text after code block.',
+      'More text.',
+      '```python',
+      'print("Hello")',
+      '```',
+      '',
+      'Text properly spaced after code.',
+      '',
+      '```ruby',
+      'puts "Hi"',
+      '```',
+      '',
+      'Text properly spaced after code.'
+    ];
+    
+    let fixedLines: string[] = [];
+    let inCodeBlock = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isFenceStart = line.trim().startsWith('```');
+      const isFenceEnd = inCodeBlock && line.trim() === '```';
+      
+      if (isFenceStart && !inCodeBlock) {
+        // Check if there's a blank line before the code block (unless it's the first line)
+        const needsBlankBefore = i > 0 && lines[i-1].trim() !== '';
+        
+        if (needsBlankBefore) {
+          fixedLines.push('');
+        }
+        
+        fixedLines.push(line);
+        inCodeBlock = true;
+      } else if (isFenceEnd) {
+        fixedLines.push(line);
+        inCodeBlock = false;
+        
+        // Check if there's a blank line after the code block (unless it's the last line)
+        const needsBlankAfter = i < lines.length - 1 && lines[i+1].trim() !== '';
+        
+        if (needsBlankAfter) {
+          fixedLines.push('');
+        }
+      } else {
+        fixedLines.push(line);
+      }
+    }
+    
+    // Check the results
+    expect(fixedLines).toEqual([
+      'Text before code block.',
+      '',
+      '```javascript',
+      'const x = 1;',
+      '```',
+      '',
+      'Text after code block.',
+      'More text.',
+      '',
+      '```python',
+      'print("Hello")',
+      '```',
+      '',
+      'Text properly spaced after code.',
+      '',
+      '```ruby',
+      'puts "Hi"',
+      '```',
+      '',
+      'Text properly spaced after code.'
+    ]);
+  });
+  
+  // MD032: Lists should be surrounded by blank lines
+  test('MD032: should fix lists not surrounded by blank lines', () => {
+    // Test content with lists not properly surrounded by blank lines
+    const lines = [
+      'Text before list.',
+      '- Item 1',
+      '- Item 2',
+      '- Item 3',
+      'Text after list.',
+      'More text.',
+      '1. Numbered item 1',
+      '2. Numbered item 2',
+      '',
+      'Text properly spaced after list.'
+    ];
+    
+    let fixedLines: string[] = [];
+    let inList = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const isListItem = /^(\s*[-+*]|\s*\d+\.)\s+.+/.test(line);
+      
+      // Detect end of list: we were in a list, current line is not a list item, and it's not empty
+      const isEndOfList = inList && !isListItem && line.trim() !== '';
+      
+      if (isListItem && !inList) {
+        // List is starting
+        inList = true;
+        
+        // Check if there's a blank line before the list (unless it's the first line)
+        const needsBlankBefore = i > 0 && lines[i-1].trim() !== '';
+        
+        if (needsBlankBefore) {
+          fixedLines.push('');
+        }
+        
+        fixedLines.push(line);
+      } else if (isEndOfList) {
+        // List is ending
+        inList = false;
+        
+        // The current line is non-list content, make sure there's a blank line before it
+        if (fixedLines.length > 0 && fixedLines[fixedLines.length - 1].trim() !== '') {
+          fixedLines.push('');
+        }
+        
+        fixedLines.push(line);
+      } else {
+        // Regular line (could be a list item in an ongoing list or non-list content)
+        fixedLines.push(line);
+        
+        // If this is a list item, we're in a list
+        if (isListItem) {
+          inList = true;
+        } else if (line.trim() === '') {
+          // Empty line - not a list item, but doesn't necessarily end the list
+          // We'll determine if we're still in a list when we see the next non-empty line
+        } else {
+          // Non-empty, non-list item line - definitely not in a list
+          inList = false;
+        }
+      }
+    }
+    
+    // Check the results
+    expect(fixedLines).toEqual([
+      'Text before list.',
+      '',
+      '- Item 1',
+      '- Item 2',
+      '- Item 3',
+      '',
+      'Text after list.',
+      'More text.',
+      '',
+      '1. Numbered item 1',
+      '2. Numbered item 2',
+      '',
+      'Text properly spaced after list.'
+    ]);
+  });
+  
+  // MD040: Fenced code blocks should have a language specified
+  test('MD040: should add language to fenced code blocks', () => {
+    // Test content with code blocks missing language specifications
+    const lines = [
+      '```',
+      'Code without language',
+      '```',
+      '',
+      '```javascript',
+      'const x = 1; // This one has a language',
+      '```',
+      '',
+      '```',
+      'Another code block without language',
+      '```'
+    ];
+    
+    let fixedLines: string[] = [];
+    let inCodeBlock = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      if (!inCodeBlock && line.trim() === '```') {
+        // Add 'text' as the default language
+        fixedLines.push('```text');
+        inCodeBlock = true;
+      } else if (inCodeBlock && line.trim() === '```') {
+        fixedLines.push(line);
+        inCodeBlock = false;
+      } else {
+        fixedLines.push(line);
+        if (!inCodeBlock && line.trim().startsWith('```')) {
+          inCodeBlock = true;
+        }
+      }
+    }
+    
+    // Check the results
+    expect(fixedLines).toEqual([
+      '```text',
+      'Code without language',
+      '```',
+      '',
+      '```javascript',
+      'const x = 1; // This one has a language',
+      '```',
+      '',
+      '```text',
+      'Another code block without language',
+      '```'
+    ]);
+  });
+  
   // Tests for multiple rules working together
   test('Multiple rules: should fix multiple issues in the same content', () => {
     // Test content with multiple issues

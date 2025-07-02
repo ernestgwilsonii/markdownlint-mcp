@@ -12,13 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contribution guidelines (CONTRIBUTING.md)
 - Enhanced .gitignore for Node.js projects
 - This CHANGELOG.md to track project evolution
-- Implemented 10 additional markdownlint auto-fix rules:
+- Refactored project structure with modular organization:
+  - Created separate directories for rules and utilities
+  - Implemented rule interface for consistent rule implementation
+  - Extracted server logic to dedicated server.ts module
+  - Created file utility functions for file operations
+  - Added structured logging system with configurable log levels
+- Implemented the following markdownlint auto-fix rules:
   - MD009 - Trailing spaces
   - MD010 - Hard tabs
+  - MD012 - Multiple consecutive blank lines
   - MD018 - No space after hash on atx style heading
   - MD019 - Multiple spaces after hash on atx style heading
   - MD020 - No space inside hashes on closed atx style heading
   - MD021 - Multiple spaces inside hashes on closed atx style heading
+  - MD022 - Headings should be surrounded by blank lines
   - MD023 - Headings must start at the beginning of the line
   - MD026 - Trailing punctuation in heading
   - MD027 - Multiple spaces after blockquote symbol
