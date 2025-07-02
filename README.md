@@ -34,21 +34,85 @@ While many MCP servers exist for converting various file formats **to** Markdown
 - Uses **markdownlint** default ruleset (community standard)
 - Based on **CommonMark specification**
 - Follows **GitHub Flavored Markdown** conventions
-- Supports **30+ established linting rules** covering:
-  - Consistent heading styles
-  - Proper list formatting
-  - Line length limits
-  - No trailing whitespace
-  - Consistent emphasis markers
-  - And much more
+- Supports **all 52 official markdownlint rules**
 
+## Auto-Fixable Rules
 
-### Configuration Support
+Our MCP server can automatically fix 30 out of 52 official markdownlint rules (58%). These rules are deterministic and can be fixed without human judgment:
 
-- **Zero configuration** required (uses sensible defaults)
-- **Optional customization** via `.markdownlint.json` files
-- **Ecosystem compatibility** for specialized Markdown requirements
+### Whitespace & Formatting (9 rules)
+- **MD009** - Trailing spaces
+- **MD010** - Hard tabs
+- **MD012** - Multiple consecutive blank lines
+- **MD022** - Headings surrounded by blank lines
+- **MD031** - Fenced code blocks surrounded by blank lines
+- **MD032** - Lists surrounded by blank lines
+- **MD047** - Files should end with single newline
+- **MD058** - Tables surrounded by blank lines
+- **MD027** - Multiple spaces after blockquote symbol
 
+### Heading Formatting (6 rules)
+- **MD018** - No space after hash
+- **MD019** - Multiple spaces after hash
+- **MD020** - No space inside closed ATX
+- **MD021** - Multiple spaces inside closed ATX
+- **MD023** - Headings start at line beginning
+- **MD026** - Trailing punctuation in heading
+
+### List Formatting (4 rules)
+- **MD004** - Unordered list style
+- **MD005** - List item indentation consistency
+- **MD007** - Unordered list indentation
+- **MD030** - Spaces after list markers
+
+### Link & Text Formatting (7 rules)
+- **MD011** - Reversed link syntax
+- **MD034** - Bare URL used
+- **MD037** - Spaces inside emphasis
+- **MD038** - Spaces inside code spans
+- **MD039** - Spaces inside link text
+- **MD049** - Emphasis style
+- **MD050** - Strong style
+
+### Advanced Fixable (4 rules)
+- **MD014** - Dollar signs before commands
+- **MD044** - Proper names capitalization
+- **MD051** - Link fragments validation
+- **MD053** - Unused reference definitions
+
+## Detection-Only Rules
+
+The following 22 rules (42%) cannot be automatically fixed because they require human judgment, content understanding, or style decisions:
+
+### Structural/Content Rules (12 rules)
+- **MD001** - Heading increment (requires understanding document structure)
+- **MD003** - Heading style consistency (needs style preference decision)
+- **MD013** - Line length (requires content-aware line breaking)
+- **MD024** - Duplicate headings (could break document structure/navigation)
+- **MD025** - Multiple H1s (requires understanding document hierarchy)
+- **MD028** - Blank line in blockquote (ambiguous semantic intent)
+- **MD029** - Ordered list numbering (style preference)
+- **MD035** - Horizontal rule style (style preference)
+- **MD036** - Emphasis as heading (requires semantic understanding)
+- **MD041** - First line H1 (may break existing document structure)
+- **MD043** - Required heading structure (document-specific requirements)
+- **MD046** - Code block style (style preference)
+
+### Content/Language Rules (5 rules)
+- **MD033** - Inline HTML (may be intentional/necessary)
+- **MD040** - Code language specification (requires code language knowledge)
+- **MD045** - Alt text for images (requires understanding image content)
+- **MD059** - Descriptive link text (requires understanding context/purpose)
+- **MD042** - Empty links (may be placeholders or templates)
+
+### Reference/Link Rules (3 rules)
+- **MD052** - Reference links defined (may be external or conditional)
+- **MD054** - Link/image style (style preference)
+- **MD056** - Table column count (may be intentional formatting)
+
+### Table Rules (2 rules)
+- **MD055** - Table pipe style (style preference)
+- **MD048** - Code fence style (style preference)
 
 ## Installation
 
