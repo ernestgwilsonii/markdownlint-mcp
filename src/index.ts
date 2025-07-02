@@ -231,16 +231,24 @@ class MarkdownLintServer {
       // Load configuration
       const config = await this.loadConfiguration(path.dirname(filePath));
       
-      // Apply fixes iteratively until no more fixes are possible
-      let currentContent = originalContent;
-      let totalFixesApplied = 0;
-      let iterationCount = 0;
-      const maxIterations = 10; // Prevent infinite loops
+      // Get initial issues count
+      const initialResults = markdownlint.sync({
+        strings: {
+          [filePath]: originalContent
+        },
+        config
+      });
+      const initialIssues = (initialResults[filePath] || []) as MarkdownlintIssue[];
       
-      while (iterationCount < maxIterations) {
-        iterationCount++;
+      // Apply fixes using markdownlint's built-in fix functionality
+      let currentContent = originalContent;
+      let totalIterations = 0;
+      const maxIterations = 10;
+      
+      while (totalIterations < maxIterations) {
+        totalIterations++;
         
-        // Run markdownlint on current content
+        // Run markdownlint to get current issues
         const results = markdownlint.sync({
           strings: {
             [filePath]: currentContent
@@ -252,72 +260,70 @@ class MarkdownLintServer {
         const fixableIssues = issues.filter(issue => issue.fixInfo);
         
         if (fixableIssues.length === 0) {
-          // No more fixable issues
-          break;
+          break; // No more fixable issues
         }
 
-        // Apply all fixes for this iteration
-        let contentLines = currentContent.split('\n');
-        let fixesAppliedThisIteration = 0;
+        // Apply fixes manually using the fixInfo
+        const lines = currentContent.split('\n');
+        let fixesApplied = 0;
 
-        // Sort fixes by line number (descending) to maintain correct line numbers when applying fixes
-        fixableIssues.sort((a, b) => (b.lineNumber || 0) - (a.lineNumber || 0));
+        // Process fixes from last line to first to maintain line numbers
+        const sortedIssues = [...fixableIssues].sort((a, b) => 
+          (b.lineNumber || 0) - (a.lineNumber || 0)
+        );
 
-        for (const issue of fixableIssues) {
-          if (issue.fixInfo && issue.lineNumber) {
-            const lineIndex = issue.lineNumber - 1;
-            const fixInfo = issue.fixInfo;
+        for (const issue of sortedIssues) {
+          if (!issue.fixInfo || !issue.lineNumber) continue;
+          
+          const lineIndex = issue.lineNumber - 1;
+          if (lineIndex < 0 || lineIndex >= lines.length) continue;
+          
+          const fixInfo = issue.fixInfo;
+          const originalLine = lines[lineIndex];
+          
+          // Handle different types of fixes
+          if (fixInfo.editColumn !== undefined) {
+            // Character-level edit within a line
+            const editColumn = Math.max(0, (fixInfo.editColumn || 1) - 1); // Convert to 0-based
+            const deleteCount = fixInfo.deleteCount || 0;
+            const insertText = fixInfo.insertText || '';
             
-            if (lineIndex >= 0 && lineIndex < contentLines.length) {
-              const originalLine = contentLines[lineIndex];
-              let newLine = originalLine;
-
-              // Apply the fix based on fixInfo
-              if (fixInfo.editColumn !== undefined) {
-                // Column-based edit
-                const editColumn = fixInfo.editColumn - 1; // Convert to 0-based
-                const deleteCount = fixInfo.deleteCount || 0;
-                const insertText = fixInfo.insertText || '';
-                
-                if (editColumn >= 0 && editColumn <= originalLine.length) {
-                  newLine = originalLine.substring(0, editColumn) + 
-                           insertText + 
-                           originalLine.substring(editColumn + deleteCount);
-                }
-              } else {
-                // Line-based edit
-                if (fixInfo.deleteCount !== undefined && fixInfo.deleteCount > 0) {
-                  // Delete lines
-                  contentLines.splice(lineIndex, fixInfo.deleteCount);
-                  if (fixInfo.insertText) {
-                    contentLines.splice(lineIndex, 0, fixInfo.insertText);
-                  }
-                  fixesAppliedThisIteration++;
-                  continue;
-                } else if (fixInfo.insertText !== undefined) {
-                  // Replace or insert
-                  newLine = fixInfo.insertText;
-                }
+            const before = originalLine.substring(0, editColumn);
+            const after = originalLine.substring(editColumn + deleteCount);
+            lines[lineIndex] = before + insertText + after;
+            fixesApplied++;
+            
+          } else if (fixInfo.deleteCount !== undefined) {
+            // Line-level operations
+            if (fixInfo.deleteCount > 0) {
+              // Delete lines
+              lines.splice(lineIndex, fixInfo.deleteCount);
+              
+              // Insert replacement text if provided
+              if (fixInfo.insertText !== undefined) {
+                lines.splice(lineIndex, 0, fixInfo.insertText);
               }
-
-              if (newLine !== originalLine) {
-                contentLines[lineIndex] = newLine;
-                fixesAppliedThisIteration++;
-              }
+              fixesApplied++;
+            } else if (fixInfo.insertText !== undefined) {
+              // Replace entire line
+              lines[lineIndex] = fixInfo.insertText;
+              fixesApplied++;
             }
+          } else if (fixInfo.insertText !== undefined) {
+            // Simple line replacement
+            lines[lineIndex] = fixInfo.insertText;
+            fixesApplied++;
           }
         }
 
-        currentContent = contentLines.join('\n');
-        totalFixesApplied += fixesAppliedThisIteration;
-
-        // If no fixes were applied this iteration, break to avoid infinite loop
-        if (fixesAppliedThisIteration === 0) {
-          break;
+        if (fixesApplied === 0) {
+          break; // No fixes applied, avoid infinite loop
         }
+
+        currentContent = lines.join('\n');
       }
 
-      // Write file if requested
+      // Write the fixed content back to file if requested
       if (writeFile) {
         await fs.writeFile(filePath, currentContent, 'utf8');
       }
@@ -329,49 +335,42 @@ class MarkdownLintServer {
         },
         config
       });
-
-      const remainingIssues = (finalResults[filePath] || []) as MarkdownlintIssue[];
-      const originalResults = markdownlint.sync({
-        strings: {
-          [filePath]: originalContent
-        },
-        config
-      });
-      const originalIssues = (originalResults[filePath] || []) as MarkdownlintIssue[];
-
-      // Generate report
+      const finalIssues = (finalResults[filePath] || []) as MarkdownlintIssue[];
+      
+      // Calculate fixes applied
+      const fixesApplied = initialIssues.length - finalIssues.length;
+      
+      // Generate status report
       let statusText = '';
       
-      if (totalFixesApplied > 0) {
-        statusText = `✅ **Successfully applied ${totalFixesApplied} automatic fixes** across ${iterationCount} iteration(s)\n\n`;
+      if (fixesApplied > 0) {
+        statusText = `✅ **Successfully fixed ${fixesApplied} issue(s)** in ${totalIterations} iteration(s)\n\n`;
       }
       
-      if (remainingIssues.length > 0) {
-        statusText += `⚠️ **${remainingIssues.length} issue(s) require manual attention:**\n\n`;
-        const remainingList = remainingIssues.map((issue: MarkdownlintIssue) => 
+      if (finalIssues.length > 0) {
+        statusText += `⚠️ **${finalIssues.length} issue(s) require manual attention:**\n\n`;
+        const remainingList = finalIssues.map((issue: MarkdownlintIssue) => 
           `- **Line ${issue.lineNumber}**: ${issue.ruleDescription} (${issue.ruleNames.join('/')})\n  ${issue.errorDetail || ''}`
         ).join('\n');
         statusText += remainingList;
-      } else if (totalFixesApplied > 0) {
+      } else if (fixesApplied > 0) {
         statusText += `🎉 **All issues resolved!** The file is now fully compliant with Markdown standards.`;
       } else {
         statusText = `✅ **No fixes needed** - The file is already compliant.`;
       }
 
-      if (writeFile && totalFixesApplied > 0) {
+      if (writeFile && fixesApplied > 0) {
         statusText += `\n\n📝 **Changes saved to file**`;
       }
 
-      // Show before/after summary
-      if (originalIssues.length > 0 || remainingIssues.length > 0) {
-        statusText += `\n\n**Summary:**\n- **Before:** ${originalIssues.length} issues\n- **After:** ${remainingIssues.length} issues\n- **Fixed:** ${originalIssues.length - remainingIssues.length} issues`;
-      }
+      // Add summary
+      statusText += `\n\n**Summary:**\n- **Before:** ${initialIssues.length} issues\n- **After:** ${finalIssues.length} issues\n- **Fixed:** ${fixesApplied} issues`;
 
       return {
         content: [
           {
             type: 'text',
-            text: `## Fix Results for ${path.basename(filePath)}\n\n${statusText}${!writeFile && totalFixesApplied > 0 ? '\n\n**Preview of fixed content:**\n\n```markdown\n' + currentContent + '\n```' : ''}`
+            text: `## Fix Results for ${path.basename(filePath)}\n\n${statusText}${!writeFile && currentContent !== originalContent ? '\n\n**Preview of fixed content:**\n\n```markdown\n' + currentContent + '\n```' : ''}`
           }
         ]
       };
