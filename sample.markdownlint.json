@@ -1,0 +1,17 @@
+{
+  "default": true,
+  "MD013": { "line_length": 120 },
+  "MD033": false,
+  "MD041": false,
+  "MD007": { "indent": 4 },
+  "MD026": { "punctuation": ".,;:!" },
+  "MD029": { "style": "ordered" },
+  "MD004": { "style": "dash" },
+  "MD012": { "maximum": 1 },
+  "MD036": false,
+  "MD031": true,
+  "MD032": true,
+  "MD047": true,
+  "MD049": { "style": "asterisk" },
+  "MD050": { "style": "asterisk" }
+}

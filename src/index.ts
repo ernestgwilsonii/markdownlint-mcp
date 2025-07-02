@@ -11,36 +11,18 @@ import {
 import markdownlint from 'markdownlint';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { MarkdownlintIssue, ToolArguments, DEFAULT_CONFIG } from './types.js';
 
-// Define types for markdownlint results
-interface MarkdownlintIssue {
-  lineNumber: number;
-  ruleNames: string[];
-  ruleDescription: string;
-  errorDetail?: string;
-  fixInfo?: {
-    editColumn?: number;
-    deleteCount?: number;
-    insertText?: string;
-  };
-}
-
-interface ToolArguments {
-  filePath?: unknown;
-  writeFile?: unknown;
-}
-
-// Default markdownlint configuration
-const DEFAULT_CONFIG = {
-  'default': true,
-  'MD013': { 'line_length': 120 }, // Allow longer lines for modern displays
-  'MD033': false, // Allow HTML
-  'MD041': false, // Allow files to not start with H1
-};
-
-class MarkdownLintServer {
+/**
+ * MCP server for markdownlint functionality
+ * Provides tools for linting and fixing markdown files
+ */
+export class MarkdownLintServer {
   private server: Server;
 
+  /**
+   * Initialize the markdownlint MCP server
+   */
   constructor() {
     this.server = new Server(
       {
@@ -64,7 +46,10 @@ class MarkdownLintServer {
     });
   }
 
-  private setupToolHandlers() {
+  /**
+   * Set up handlers for MCP tool requests
+   */
+  private setupToolHandlers(): void {
     // List available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
@@ -163,7 +148,12 @@ class MarkdownLintServer {
     });
   }
 
-  private async lintMarkdown(filePath: string) {
+  /**
+   * Lint a markdown file and report issues
+   * @param filePath Path to the markdown file
+   * @returns MCP content response with linting results
+   */
+  public async lintMarkdown(filePath: string) {
     try {
       // Check if file exists
       await fs.access(filePath);
@@ -220,7 +210,13 @@ class MarkdownLintServer {
     }
   }
 
-  private async fixMarkdown(filePath: string, writeFile: boolean) {
+  /**
+   * Fix markdown issues in a file
+   * @param filePath Path to the markdown file
+   * @param writeFile Whether to write fixes back to the file
+   * @returns MCP content response with fix results
+   */
+  public async fixMarkdown(filePath: string, writeFile: boolean) {
     try {
       // Check if file exists
       await fs.access(filePath);
@@ -528,7 +524,11 @@ class MarkdownLintServer {
     }
   }
 
-  private async getConfiguration() {
+  /**
+   * Get the current markdownlint configuration
+   * @returns MCP content response with configuration details
+   */
+  public async getConfiguration() {
     return {
       content: [
         {
@@ -539,6 +539,11 @@ class MarkdownLintServer {
     };
   }
 
+  /**
+   * Load markdownlint configuration from file or use defaults
+   * @param directory Directory to look for .markdownlint.json
+   * @returns Configuration object
+   */
   private async loadConfiguration(directory: string) {
     const configPath = path.join(directory, '.markdownlint.json');
     
@@ -552,7 +557,10 @@ class MarkdownLintServer {
     }
   }
 
-  async run() {
+  /**
+   * Start the MCP server
+   */
+  public async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('Markdownlint MCP server running on stdio');
