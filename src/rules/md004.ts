@@ -1,4 +1,4 @@
-import { Rule } from './rule-interface';
+import { Rule, RuleViolation } from './rule-interface';
 
 /**
  * MD004: Unordered list style
@@ -46,11 +46,43 @@ export function fix(lines: string[]): string[] {
 }
 
 /**
+ * Validate lines for inconsistent unordered list styles
+ * @param lines Array of string lines to validate
+ * @returns Array of rule violations
+ */
+export function validate(lines: string[]): RuleViolation[] {
+  const violations: RuleViolation[] = [];
+  let firstBulletStyle: string | null = null;
+  
+  lines.forEach((line, index) => {
+    const match = line.match(/^\s*([-+*])\s+/);
+    if (match) {
+      const bulletStyle = match[1];
+      
+      if (firstBulletStyle === null) {
+        // Set the first bullet style as the expected style
+        firstBulletStyle = bulletStyle;
+      } else if (bulletStyle !== firstBulletStyle) {
+        // Found inconsistent bullet style
+        violations.push({
+          lineNumber: index + 1,
+          details: `Expected '${firstBulletStyle}' for unordered list item, found '${bulletStyle}'`,
+          range: [match.index || 0, match[0].length]
+        });
+      }
+    }
+  });
+  
+  return violations;
+}
+
+/**
  * Rule implementation for MD004
  */
 export const rule: Rule = {
   name,
   description,
+  validate,
   fix
 };
 

@@ -1,4 +1,4 @@
-import { Rule } from './rule-interface';
+import { Rule, RuleViolation } from './rule-interface';
 
 /**
  * MD030: Spaces after list markers
@@ -40,11 +40,47 @@ export function fix(lines: string[]): string[] {
 }
 
 /**
+ * Validate lines for spacing issues after list markers
+ * @param lines Array of string lines to validate
+ * @returns Array of rule violations
+ */
+export function validate(lines: string[]): RuleViolation[] {
+  const violations: RuleViolation[] = [];
+  const unorderedListItemRegex = /^(\s*)([-+*])(\s+)(.*)$/;
+  const orderedListItemRegex = /^(\s*)(\d+\.)(\s+)(.*)$/;
+  
+  lines.forEach((line, index) => {
+    // Check unordered list items
+    let match = line.match(unorderedListItemRegex);
+    if (match && match[3] !== ' ') {
+      violations.push({
+        lineNumber: index + 1,
+        details: `Expected 1 space after list marker, found ${match[3].length} spaces`,
+        range: [match[1].length + match[2].length, match[3].length]
+      });
+    }
+    
+    // Check ordered list items
+    match = line.match(orderedListItemRegex);
+    if (match && match[3] !== ' ') {
+      violations.push({
+        lineNumber: index + 1,
+        details: `Expected 1 space after list marker, found ${match[3].length} spaces`,
+        range: [match[1].length + match[2].length, match[3].length]
+      });
+    }
+  });
+  
+  return violations;
+}
+
+/**
  * Rule implementation for MD030
  */
 export const rule: Rule = {
   name,
   description,
+  validate,
   fix
 };
 

@@ -1,4 +1,4 @@
-import { Rule } from './rule-interface';
+import { Rule, RuleViolation } from './rule-interface';
 
 /**
  * MD038: Spaces inside code span elements
@@ -17,20 +17,46 @@ export const description = 'Spaces inside code span elements';
  */
 export function fix(lines: string[]): string[] {
   return lines.map(line => {
-    // Look for code spans with spaces after opening backtick or before closing backtick
-    // This handles the case where there's a space after the opening backtick
-    let fixedLine = line.replace(/`\s+([^`]+?)`/g, '`$1`');
-    
-    // This handles the case where there's a space before the closing backtick
-    fixedLine = fixedLine.replace(/`([^`]+?)\s+`/g, '`$1`');
-    
-    // Handle the edge case where there are spaces on both sides
-    // We need a separate replacement to avoid missing some cases due to the
-    // non-greedy operator in the previous patterns
-    fixedLine = fixedLine.replace(/`\s+([^`]+?)\s+`/g, '`$1`');
-    
-    return fixedLine;
+    // Handle spaces inside code spans with a comprehensive pattern
+    return line.replace(/`(\s*)([^`]*?)(\s*)`/g, (match, leadingSpaces, content, trailingSpaces) => {
+      // If there's no content, return as-is (empty code span)
+      if (!content.trim()) {
+        return '``';
+      }
+      
+      // Remove leading and trailing spaces but preserve internal content
+      return `\`${content.trim()}\``;
+    });
   });
+}
+
+/**
+ * Validate lines for spaces inside code span elements
+ * @param lines Array of string lines to validate
+ * @returns Array of rule violations
+ */
+export function validate(lines: string[]): RuleViolation[] {
+  const violations: RuleViolation[] = [];
+  
+  lines.forEach((line, index) => {
+    // Find all code spans
+    const codeSpanMatches = line.matchAll(/`([^`]*)`/g);
+    
+    for (const match of codeSpanMatches) {
+      const content = match[1];
+      
+      // Check if there are leading or trailing spaces in the content
+      if (content.length > 0 && (content.startsWith(' ') || content.endsWith(' '))) {
+        violations.push({
+          lineNumber: index + 1,
+          details: 'Spaces inside code span elements',
+          range: [match.index || 0, match[0].length]
+        });
+      }
+    }
+  });
+  
+  return violations;
 }
 
 /**
@@ -39,6 +65,7 @@ export function fix(lines: string[]): string[] {
 export const rule: Rule = {
   name,
   description,
+  validate,
   fix
 };
 
