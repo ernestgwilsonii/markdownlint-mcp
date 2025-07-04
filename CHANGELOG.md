@@ -82,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - MD041 - First line in a file should be a top-level heading
     - MD043 - Required heading structure
     - MD044 - Proper names should have the correct capitalization
+    - MD049 - Emphasis style
 
 ### Planned
 - Testing framework with Jest
